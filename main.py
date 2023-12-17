@@ -1,34 +1,49 @@
 import cv2
+from deepface import DeepFace
 
-# Load the pre-trained model for face detection
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+def main():
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    cap = cv2.VideoCapture(0)
 
-# Start the webcam
-cap = cv2.VideoCapture(0)
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-while True:
-    # Capture frame-by-frame
-    ret, frame = cap.read()
-    if not ret:
-        break
+        faces = face_cascade.detectMultiScale(frame, 1.1, 4)
 
-    # Convert to grayscale
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+            face_frame = frame[y:y+h, x:x+w]
 
-    # Detect faces
-    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+            try:
+                results = DeepFace.analyze(face_frame, actions=['emotion'], enforce_detection=False)
 
-    # Draw rectangles around the faces
-    for (x, y, w, h) in faces:
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+                # Handling different types of results
+                if isinstance(results, list):
+                    result = results[0]  # Assuming the first result is relevant
+                elif isinstance(results, dict):
+                    result = results
+                else:
+                    raise ValueError("Unexpected result type from DeepFace.analyze")
 
-    # Display the resulting frame
-    cv2.imshow('Face Detection', frame)
+                print(result)  # Log the result for debugging
 
-    # Break the loop
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+                emotion = result.get('dominant_emotion', 'N/A')
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                text_position = (x, max(y - 10, 0))
+                cv2.putText(frame, emotion, text_position, font, 1, (0, 255, 0), 2)
 
-# When everything is done, release the capture
-cap.release()
-cv2.destroyAllWindows()
+            except Exception as e:
+                print("Error in emotion detection:", e)
+
+        cv2.imshow('Emotion Detection', frame)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
