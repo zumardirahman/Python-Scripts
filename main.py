@@ -10,29 +10,34 @@ def main():
         if not ret:
             break
 
-        faces = face_cascade.detectMultiScale(frame, 1.1, 4)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
 
         for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
             face_frame = frame[y:y+h, x:x+w]
+            resized_face_frame = cv2.resize(face_frame, (160, 160))
 
             try:
-                results = DeepFace.analyze(face_frame, actions=['emotion'], enforce_detection=False)
+                results = DeepFace.analyze(resized_face_frame, actions=['emotion'], enforce_detection=False)
 
-                # Handling different types of results
+                # Check the type of results
                 if isinstance(results, list):
-                    result = results[0]  # Assuming the first result is relevant
+                    # Extract the first item if results is a list
+                    result = results[0]
                 elif isinstance(results, dict):
+                    # Use results directly if it's a dictionary
                     result = results
                 else:
-                    raise ValueError("Unexpected result type from DeepFace.analyze")
+                    raise TypeError("Unexpected result format from DeepFace.analyze")
 
-                print(result)  # Log the result for debugging
+                print("Result:", result)  # Print the result for debugging
 
-                emotion = result.get('dominant_emotion', 'N/A')
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                text_position = (x, max(y - 10, 0))
-                cv2.putText(frame, emotion, text_position, font, 1, (0, 255, 0), 2)
+                if 'dominant_emotion' in result:
+                    emotion = result['dominant_emotion']
+                    font = cv2.FONT_HERSHEY_SIMPLEX
+                    cv2.putText(frame, emotion, (x, y-10), font, 1, (0, 255, 0), 2)
+
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
 
             except Exception as e:
                 print("Error in emotion detection:", e)
